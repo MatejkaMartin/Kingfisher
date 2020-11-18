@@ -76,7 +76,7 @@ public struct KFImage: SwiftUI.View {
     /// - Parameter isLoaded: Whether the image is loaded or not. This provides a way to inspect the internal loading
     ///                       state. `true` if the image is loaded successfully. Otherwise, `false`. Do not set the
     ///                       wrapped value from outside.
-    public init(source: Source?, options: KingfisherOptionsInfo? = nil, isLoaded: Binding<Bool> = .constant(false), requiredItems: ImageRequiredItems?) {
+    public init(source: Source?, options: KingfisherOptionsInfo? = nil, isLoaded: Binding<Bool> = .constant(false), requiredItems: ImageRequiredItems? = nil) {
         binder = ImageBinder(source: source, options: options, isLoaded: isLoaded)
         configurations = []
         self.requiredItems = requiredItems
@@ -90,7 +90,7 @@ public struct KFImage: SwiftUI.View {
     /// - Parameter isLoaded: Whether the image is loaded or not. This provides a way to inspect the internal loading
     ///                       state. `true` if the image is loaded successfully. Otherwise, `false`. Do not set the
     ///                       wrapped value from outside.
-    public init(_ url: URL?, options: KingfisherOptionsInfo? = nil, isLoaded: Binding<Bool> = .constant(false), requiredItems: ImageRequiredItems) {
+    public init(_ url: URL?, options: KingfisherOptionsInfo? = nil, isLoaded: Binding<Bool> = .constant(false), requiredItems: ImageRequiredItems? = nil) {
         self.init(source: url?.convertToSource(), options: options, isLoaded: isLoaded, requiredItems: requiredItems)
     }
     
@@ -117,7 +117,8 @@ public struct KFImage: SwiftUI.View {
                 .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
                 .onAppear { [weak binder = self.binder] in
                     guard let binder = binder,
-                          requiredItems?.forceInitialFetchImage
+                          let forceFetch = requiredItems?.forceInitialFetchImage,
+                          forceFetch
                           else {
                         return
                     }
@@ -132,8 +133,11 @@ public struct KFImage: SwiftUI.View {
                     if self.cancelOnDisappear {
                         binder.cancel()
                     }
-                }.onReceive(requiredItems.upadateImagePublisher) { (_) in
-                    guard !binder.loadingOrSuccessed else { return }
+                }.onReceive(updatePublisher) { [weak binder = self.binder] (_) in
+                    guard let binder = binder else {
+                        return
+                    }
+                    guard !binder.loadingOrSucceeded else { return }
                     binder.start()
                 }
             }
@@ -228,7 +232,7 @@ extension KFImage {
 struct KFImage_Previews : PreviewProvider {
     static var previews: some SwiftUI.View {
         Group {
-            KFImage(URL(string: "https://raw.githubusercontent.com/onevcat/Kingfisher/master/images/logo.png")!)
+            KFImage(URL(string: "https://raw.githubusercontent.com/onevcat/Kingfisher/master/images/logo.png")!, requiredItems: nil)
                 .onSuccess { r in
                     print(r)
                 }
