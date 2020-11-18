@@ -51,7 +51,13 @@ public struct KFImage: SwiftUI.View {
     public struct ImageRequiredItems {
         let id: Int
         let forceInitialFetchImage: Bool
-        let upadateImagePublisher: AnyPublisher<Void, Never>
+        let updateImageEventPublisher: AnyPublisher<Void, Never>
+        
+        public init(id: Int, updateImageEventPublisher: AnyPublisher<Void, Never>, forceInitialFetchImage: Bool) {
+            self.id = id
+            self.updateImageEventPublisher = updateImageEventPublisher
+            self.forceInitialFetchImage = forceInitialFetchImage
+        }
     }
     
 
@@ -95,7 +101,7 @@ public struct KFImage: SwiftUI.View {
     }
     
     public var updatePublisher: AnyPublisher<Void, Never> {
-        requiredItems?.upadateImagePublisher ?? Empty().eraseToAnyPublisher()
+        requiredItems?.updateImageEventPublisher ?? Empty().eraseToAnyPublisher()
     }
 
     /// Declares the content and behavior of this view.
