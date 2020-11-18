@@ -47,6 +47,13 @@ extension SwiftUI.Image {
 /// Declaring a `KFImage` in a `View`'s body to trigger loading from the given `Source`.
 @available(iOS 13.0, OSX 10.15, tvOS 13.0, watchOS 6.0, *)
 public struct KFImage: SwiftUI.View {
+    
+    struct ImageRequiredItems {
+        let id: Int
+        let forceInitialFetchImage: Bool
+        let upadateImagePublisher: AnyPublisher<Void, Never>
+    }
+    
 
     /// An image binder that manages loading and cancelling image related task.
     @ObservedObject public private(set) var binder: ImageBinder
@@ -56,6 +63,8 @@ public struct KFImage: SwiftUI.View {
 
     // Whether the download task should be cancelled when the view disappears.
     var cancelOnDisappear: Bool = false
+    
+    private let requiredItems: ImageRequiredItems?
 
     // Configurations should be performed on the image.
     var configurations: [(SwiftUI.Image) -> SwiftUI.Image]
@@ -67,9 +76,10 @@ public struct KFImage: SwiftUI.View {
     /// - Parameter isLoaded: Whether the image is loaded or not. This provides a way to inspect the internal loading
     ///                       state. `true` if the image is loaded successfully. Otherwise, `false`. Do not set the
     ///                       wrapped value from outside.
-    public init(source: Source?, options: KingfisherOptionsInfo? = nil, isLoaded: Binding<Bool> = .constant(false)) {
+    public init(source: Source?, options: KingfisherOptionsInfo? = nil, isLoaded: Binding<Bool> = .constant(false), requiredItems: ImageRequiredItems?) {
         binder = ImageBinder(source: source, options: options, isLoaded: isLoaded)
         configurations = []
+        self.requiredItems = requiredItems
 //        binder.start() it is already called on appear
     }
 
@@ -80,8 +90,12 @@ public struct KFImage: SwiftUI.View {
     /// - Parameter isLoaded: Whether the image is loaded or not. This provides a way to inspect the internal loading
     ///                       state. `true` if the image is loaded successfully. Otherwise, `false`. Do not set the
     ///                       wrapped value from outside.
-    public init(_ url: URL?, options: KingfisherOptionsInfo? = nil, isLoaded: Binding<Bool> = .constant(false)) {
-        self.init(source: url?.convertToSource(), options: options, isLoaded: isLoaded)
+    public init(_ url: URL?, options: KingfisherOptionsInfo? = nil, isLoaded: Binding<Bool> = .constant(false), requiredItems: ImageRequiredItems) {
+        self.init(source: url?.convertToSource(), options: options, isLoaded: isLoaded, requiredItems: requiredItems)
+    }
+    
+    public var updatePublisher: AnyPublisher<Void, Never> {
+        requiredItems?.upadateImagePublisher ?? Empty().eraseToAnyPublisher()
     }
 
     /// Declares the content and behavior of this view.
@@ -102,7 +116,9 @@ public struct KFImage: SwiftUI.View {
                 }
                 .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
                 .onAppear { [weak binder = self.binder] in
-                    guard let binder = binder else {
+                    guard let binder = binder,
+                          requiredItems?.forceInitialFetchImage
+                          else {
                         return
                     }
                     if !binder.loadingOrSucceeded {
@@ -116,6 +132,9 @@ public struct KFImage: SwiftUI.View {
                     if self.cancelOnDisappear {
                         binder.cancel()
                     }
+                }.onReceive(requiredItems.upadateImagePublisher) { (_) in
+                    guard !binder.loadingOrSuccessed else { return }
+                    binder.start()
                 }
             }
         }
